@@ -366,7 +366,11 @@ const sendOtp = async (req, res) => {
 
     await user.save();
 
-    res.json({ message: 'OTP sent successfully', dummyOtp: otp }); // Return otp in response so client can easily mock/develop
+    const responsePayload = { message: 'OTP sent successfully' };
+    if (process.env.NODE_ENV !== 'production') {
+      responsePayload.dummyOtp = otp;
+    }
+    res.json(responsePayload);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
