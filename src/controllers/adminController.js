@@ -645,7 +645,12 @@ const getAdminOverview = async (req, res) => {
 // @access  Public (Temporary for dev)
 const updateAdminUser = async (req, res) => {
   try {
-    const { name, email, phoneNumber, alternatePhone, serviceType, area, district, state, pincode, address } = req.body;
+    const { 
+      name, email, phoneNumber, alternatePhone, serviceType, 
+      area, district, state, pincode, address,
+      gender, startPlan, availableDays, sourceWebsite 
+    } = req.body;
+    
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -661,6 +666,10 @@ const updateAdminUser = async (req, res) => {
     if (state !== undefined) user.state = state;
     if (pincode !== undefined) user.pincode = pincode;
     if (address !== undefined) user.address = address;
+    if (gender !== undefined) user.gender = gender;
+    if (startPlan !== undefined) user.startPlan = startPlan;
+    if (availableDays !== undefined) user.availableDays = availableDays;
+    if (sourceWebsite !== undefined) user.sourceWebsite = sourceWebsite;
 
     await user.save();
     res.json({ message: 'User updated successfully', user });
@@ -841,6 +850,22 @@ const getAdminEventOverview = async (req, res) => {
   }
 };
 
+// @desc    Delete booking for Admin Dashboard
+// @route   DELETE /api/admin/bookings/:id
+// @access  Public (Temporary for dev)
+const deleteAdminBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findByIdAndDelete(req.params.id);
+    if (booking) {
+      res.json({ message: 'Booking deleted successfully' });
+    } else {
+      res.status(404).json({ message: 'Booking not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getAdminBookings,
   updateAdminService,
@@ -864,5 +889,6 @@ module.exports = {
   getAdminUserDetail,
   getAdminEventBookings,
   getAdminEventOverview,
-  exportVerifiedPhoneNumbers
+  exportVerifiedPhoneNumbers,
+  deleteAdminBooking
 };

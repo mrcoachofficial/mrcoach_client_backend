@@ -96,6 +96,23 @@ const userSchema = new mongoose.Schema({
   address: {
     type: String
   },
+  startPlan: {
+    type: String
+  },
+  availableDays: {
+    type: [String],
+    default: []
+  },
+  sourceWebsite: {
+    type: String
+  },
+  category: {
+    type: String
+  },
+  subcategories: {
+    type: [String],
+    default: []
+  },
   profileImage: {
     type: String
   },

@@ -29,7 +29,19 @@ const createBooking = async (req, res) => {
       address,
       paymentStatus,
       razorpayOrderId,
-      razorpayPaymentId
+      razorpayPaymentId,
+      name,
+      email,
+      gender,
+      state,
+      district,
+      area,
+      pincode,
+      startPlan,
+      availableDays,
+      sourceWebsite,
+      category,
+      subcategories
     } = req.body;
 
     // Update slot capacity if booking is a demo session
@@ -66,10 +78,39 @@ const createBooking = async (req, res) => {
       paymentStatus: isPaid ? 'paid' : 'unpaid',
       razorpayOrderId: razorpayOrderId || '',
       razorpayPaymentId: razorpayPaymentId || '',
-      status: initialStatus
+      status: initialStatus,
+      email,
+      gender,
+      state,
+      district,
+      area,
+      pincode,
+      startPlan,
+      availableDays,
+      sourceWebsite,
+      category,
+      subcategories
     });
 
     const createdBooking = await booking.save();
+
+    // Update user profile fields with the onboarding questionnaire details
+    const User = require('../models/User');
+    await User.findByIdAndUpdate(req.user._id, {
+      name: name || req.user.name,
+      email: email || req.user.email,
+      gender: gender || req.user.gender,
+      state: state || req.user.state,
+      district: district || req.user.district,
+      area: area || req.user.area,
+      pincode: pincode || req.user.pincode,
+      serviceType: mode || req.user.serviceType,
+      startPlan: startPlan || req.user.startPlan,
+      availableDays: availableDays || req.user.availableDays,
+      sourceWebsite: sourceWebsite || req.user.sourceWebsite,
+      category: category || req.user.category,
+      subcategories: subcategories || req.user.subcategories
+    });
 
     // Auto-award a scratch card reward to the user (if rewards are enabled)
     const { autoAwardReward } = require('./rewardController');

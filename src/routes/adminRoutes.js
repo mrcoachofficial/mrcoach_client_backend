@@ -7,12 +7,13 @@ const {
   changeAdminPassword, getAdminConfigs, updateAdminConfig, getAdminUsers,
   importAdminUsers, getAdminOverview, updateAdminUser,
   deleteAdminUser, getAdminUserDetail, getAdminEventBookings,
-  getAdminEventOverview, exportVerifiedPhoneNumbers
+  getAdminEventOverview, exportVerifiedPhoneNumbers, deleteAdminBooking
 } = require('../controllers/adminController');
 
 router.post('/login', adminLogin);
 router.route('/overview').get(getAdminOverview);
 router.route('/bookings').get(getAdminBookings);
+router.route('/bookings/:id').delete(deleteAdminBooking);
 router.route('/users').get(getAdminUsers);
 router.route('/users/import').post(importAdminUsers);
 router.route('/users/export-verified-phones').get(exportVerifiedPhoneNumbers);

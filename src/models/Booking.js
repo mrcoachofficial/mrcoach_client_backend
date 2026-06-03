@@ -62,6 +62,41 @@ const bookingSchema = new mongoose.Schema({
   razorpayPaymentId: {
     type: String,
     default: ''
+  },
+  email: {
+    type: String
+  },
+  gender: {
+    type: String
+  },
+  state: {
+    type: String
+  },
+  district: {
+    type: String
+  },
+  area: {
+    type: String
+  },
+  pincode: {
+    type: String
+  },
+  startPlan: {
+    type: String
+  },
+  availableDays: {
+    type: [String],
+    default: []
+  },
+  sourceWebsite: {
+    type: String
+  },
+  category: {
+    type: String
+  },
+  subcategories: {
+    type: [String],
+    default: []
   }
 }, {
   timestamps: true // Automatically creates 'createdAt' and 'updatedAt' fields
