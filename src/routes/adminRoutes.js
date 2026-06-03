@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { 
-  getAdminBookings, updateAdminService, adminLogin, 
+  getAdminBookings, updateAdminService, deleteAdminService, adminLogin, 
   getAdminSlots, createAdminSlot, deleteAdminSlot,
   getAdminProducts, createAdminProduct, updateAdminProduct, deleteAdminProduct,
   changeAdminPassword, getAdminConfigs, updateAdminConfig, getAdminUsers,
@@ -20,7 +20,7 @@ router.route('/users/:id').put(updateAdminUser).delete(deleteAdminUser);
 router.route('/users/:id/detail').get(getAdminUserDetail);
 router.route('/event-bookings').get(getAdminEventBookings);
 router.route('/event-bookings/overview').get(getAdminEventOverview);
-router.route('/services/:id').put(updateAdminService);
+router.route('/services/:id').put(updateAdminService).delete(deleteAdminService);
 router.route('/slots').get(getAdminSlots).post(createAdminSlot);
 router.route('/slots/:id').delete(deleteAdminSlot);
 router.route('/products').get(getAdminProducts).post(createAdminProduct);

@@ -377,7 +377,7 @@ const sendOtp = async (req, res) => {
 // @access  Public
 const verifyOtp = async (req, res) => {
   try {
-    const { phoneNumber, otp } = req.body;
+    const { phoneNumber, otp, whatsappUpdates } = req.body;
     if (!phoneNumber || !otp) {
       return res.status(400).json({ message: 'Please provide phone number and OTP' });
     }
@@ -422,7 +422,63 @@ const verifyOtp = async (req, res) => {
     user.phoneOtpExpires = undefined;
     user.phoneOtpAttempts = 0;
     user.lastLoginAt = new Date();
+    if (whatsappUpdates !== undefined) {
+      user.whatsappUpdates = !!whatsappUpdates;
+    }
 
+    await user.save();
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
+      token: generateToken(user._id)
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Login/Register with Google ID Token
+// @route   POST /api/auth/google
+// @access  Public
+const googleLogin = async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ message: 'Please provide Google ID Token' });
+    }
+
+    // Verify token with Google's API
+    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+    if (!response.ok) {
+      return res.status(400).json({ message: 'Invalid Google ID Token' });
+    }
+
+    const payload = await response.json();
+    const { email, name, picture } = payload;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email address not shared by Google' });
+    }
+
+    // Find or create user
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = new User({
+        name: name || 'Google User',
+        email: email,
+        authProvider: 'google',
+        phoneVerified: false,
+        profileImage: picture
+      });
+      await user.save();
+    }
+
+    // Update last login
+    user.lastLoginAt = new Date();
     await user.save();
 
     res.json({
@@ -446,5 +502,6 @@ module.exports = {
   verifyPasswordOtp,
   changePassword,
   sendOtp,
-  verifyOtp
+  verifyOtp,
+  googleLogin
 };

@@ -40,6 +40,10 @@ const homeBannerSchema = new mongoose.Schema({
   },
   endDate: {
     type: Date
+  },
+  redirectionUrl: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true

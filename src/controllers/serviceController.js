@@ -1,4 +1,5 @@
 const Service = require('../models/Service');
+const Config = require('../models/Config');
 
 // @desc    Fetch all services
 // @route   GET /api/services
@@ -96,10 +97,23 @@ const deleteService = async (req, res) => {
   }
 };
 
+// @desc    Get services hero image
+// @route   GET /api/services/hero-image
+// @access  Public
+const getServicesHeroImage = async (req, res) => {
+  try {
+    const config = await Config.findOne({ key: 'servicesHeroImage' });
+    res.json({ imageUrl: config ? config.value : '' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getServices,
   getServiceById,
   createService,
   updateService,
-  deleteService
+  deleteService,
+  getServicesHeroImage
 };

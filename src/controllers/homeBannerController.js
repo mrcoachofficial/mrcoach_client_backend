@@ -49,7 +49,8 @@ const createBanner = async (req, res) => {
       displayOrder,
       isActive,
       startDate,
-      endDate
+      endDate,
+      redirectionUrl
     } = req.body;
 
     const banner = await HomeBanner.create({
@@ -62,7 +63,8 @@ const createBanner = async (req, res) => {
       displayOrder: displayOrder || 0,
       isActive: isActive !== undefined ? isActive : true,
       startDate: startDate || Date.now(),
-      endDate: endDate || null
+      endDate: endDate || null,
+      redirectionUrl: redirectionUrl || ''
     });
 
     res.status(201).json(banner);
@@ -86,7 +88,8 @@ const updateBanner = async (req, res) => {
       displayOrder,
       isActive,
       startDate,
-      endDate
+      endDate,
+      redirectionUrl
     } = req.body;
 
     const banner = await HomeBanner.findById(req.params.id);
@@ -102,6 +105,7 @@ const updateBanner = async (req, res) => {
       banner.isActive = isActive !== undefined ? isActive : banner.isActive;
       banner.startDate = startDate !== undefined ? startDate : banner.startDate;
       banner.endDate = endDate !== undefined ? endDate : banner.endDate;
+      banner.redirectionUrl = redirectionUrl !== undefined ? redirectionUrl : banner.redirectionUrl;
 
       const updatedBanner = await banner.save();
       res.json(updatedBanner);

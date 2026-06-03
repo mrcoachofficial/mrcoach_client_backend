@@ -90,11 +90,30 @@ const updateAdminService = async (req, res) => {
     const service = await Service.findById(req.params.id);
     if (service) {
       service.title = req.body.title || service.title;
-      service.price = req.body.price || service.price;
+      service.price = req.body.price !== undefined ? req.body.price : service.price;
       service.imageUrl = req.body.imageUrl || service.imageUrl;
+      service.description = req.body.description || service.description;
+      service.category = req.body.category || service.category;
 
       const updatedService = await service.save();
       res.json(updatedService);
+    } else {
+      res.status(404).json({ message: 'Service not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Delete service for Admin Dashboard
+// @route   DELETE /api/admin/services/:id
+// @access  Public (Temporary for dev)
+const deleteAdminService = async (req, res) => {
+  try {
+    const service = await Service.findById(req.params.id);
+    if (service) {
+      await Service.deleteOne({ _id: service._id });
+      res.json({ message: 'Service removed' });
     } else {
       res.status(404).json({ message: 'Service not found' });
     }
@@ -311,6 +330,7 @@ const getAdminConfigs = async (req, res) => {
     let maintenance = await Config.findOne({ key: 'maintenanceMode' });
     let notifications = await Config.findOne({ key: 'sendNotifications' });
     let rewards = await Config.findOne({ key: 'rewardsEnabled' });
+    let servicesHero = await Config.findOne({ key: 'servicesHeroImage' });
 
     // Seed defaults if not found
     if (!maintenance) {
@@ -322,11 +342,15 @@ const getAdminConfigs = async (req, res) => {
     if (!rewards) {
       rewards = await Config.create({ key: 'rewardsEnabled', value: true });
     }
+    if (!servicesHero) {
+      servicesHero = await Config.create({ key: 'servicesHeroImage', value: '' });
+    }
 
     res.json({
       maintenanceMode: maintenance.value,
       sendNotifications: notifications.value,
-      rewardsEnabled: rewards.value
+      rewardsEnabled: rewards.value,
+      servicesHeroImage: servicesHero.value
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -820,6 +844,7 @@ const getAdminEventOverview = async (req, res) => {
 module.exports = {
   getAdminBookings,
   updateAdminService,
+  deleteAdminService,
   adminLogin,
   getAdminSlots,
   createAdminSlot,

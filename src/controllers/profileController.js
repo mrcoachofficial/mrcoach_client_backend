@@ -31,6 +31,7 @@ const updateProfile = async (req, res) => {
       }
       
       // Update advanced fields
+      user.whatsappUpdates = req.body.whatsappUpdates !== undefined ? req.body.whatsappUpdates : user.whatsappUpdates;
       user.gender = req.body.gender !== undefined ? req.body.gender : user.gender;
       user.age = req.body.age !== undefined ? req.body.age : user.age;
       user.dateOfBirth = req.body.dateOfBirth !== undefined ? req.body.dateOfBirth : user.dateOfBirth;

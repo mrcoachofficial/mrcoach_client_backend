@@ -128,6 +128,10 @@ const userSchema = new mongoose.Schema({
       default: true
     }
   },
+  whatsappUpdates: {
+    type: Boolean,
+    default: true
+  },
   passwordResetOtp: {
     type: String
   },
