@@ -9,7 +9,7 @@ const sendSms = async (phoneNumber, otp) => {
   const authKey = process.env.MSG91_AUTH_KEY;
   const templateId = process.env.MSG91_TEMPLATE_ID;
 
-  if (!authKey || !templateId) {
+  if (!authKey || !templateId || authKey.includes('your_msg91') || templateId.includes('your_msg91')) {
     console.log(`\n====================================`);
     console.log(`[SMS MSG91 Fallback] OTP for ${phoneNumber}: ${otp}`);
     console.log(`====================================\n`);
