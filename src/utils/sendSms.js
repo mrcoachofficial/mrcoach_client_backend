@@ -17,21 +17,58 @@ const sendSms = async (phoneNumber, otp) => {
   }
 
   try {
-    // MSG91 API configuration endpoint
-    // Standard parameters for sending OTP: authkey, template_id, mobile, otp
-    const response = await axios.get('https://control.msg91.com/api/v5/otp', {
-      params: {
-        otp: otp,
-        mobile: phoneNumber.replace(/\D/g, ''), // Keep digits only (e.g. 919876543210)
-        authkey: authKey,
-        template_id: templateId
+    const cleanPhone = phoneNumber.replace(/\D/g, ''); // Keep digits only (e.g. 919876543210)
+    const senderNumber = process.env.MSG91_WHATSAPP_NUMBER || '917448421134';
+    const namespace = process.env.MSG91_WHATSAPP_NAMESPACE || 'c6b2f8ab_03db_4801_b39d_9ca18b52f445';
+
+    console.log(`Sending WhatsApp OTP to ${cleanPhone}...`);
+
+    const payload = {
+      "integrated_number": senderNumber,
+      "content_type": "template",
+      "payload": {
+        "messaging_product": "whatsapp",
+        "type": "template",
+        "template": {
+          "name": templateId, // e.g. mrcoach_clientotp
+          "language": {
+            "code": "en",
+            "policy": "deterministic"
+          },
+          "namespace": namespace,
+          "to_and_components": [
+            {
+              "to": [
+                cleanPhone
+              ],
+              "components": {
+                "body_1": {
+                  "type": "text",
+                  "value": otp
+                },
+                "button_1": {
+                  "subtype": "url",
+                  "type": "text",
+                  "value": otp
+                }
+              }
+            }
+          ]
+        }
+      }
+    };
+
+    const response = await axios.post('https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/', payload, {
+      headers: {
+        'authkey': authKey,
+        'Content-Type': 'application/json'
       }
     });
 
-    console.log('MSG91 Response:', response.data);
-    return response.data && response.data.type === 'success';
+    console.log('MSG91 WhatsApp Response:', response.data);
+    return response.data && response.data.status === 'success';
   } catch (error) {
-    console.error('MSG91 API error sending SMS:', error.response?.data || error.message);
+    console.error('MSG91 API error sending WhatsApp:', error.response?.data || error.message);
     return false;
   }
 };
