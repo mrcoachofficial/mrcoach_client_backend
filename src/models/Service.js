@@ -12,7 +12,7 @@ const serviceSchema = new mongoose.Schema({
   category: {
     type: String,
     required: [true, 'Please select a category'],
-    enum: ['Fitness', 'Physio', 'Sports', 'Yoga', 'Therapy', 'Nutrition', 'Other']
+    enum: ['Fitness', 'Physio', 'Sports', 'Yoga', 'Therapy', 'Nutrition', 'Other', 'CategoryBanner']
   },
   price: {
     type: Number,
