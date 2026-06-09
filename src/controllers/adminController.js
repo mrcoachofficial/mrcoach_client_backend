@@ -568,8 +568,29 @@ const exportVerifiedPhoneNumbers = async (req, res) => {
 // @access  Public (Temporary for dev)
 const getAdminOverview = async (req, res) => {
   try {
+    const timeRange = req.query.range || req.query.timeRange || 'all';
+    let dateFilter = {};
+
+    if (timeRange !== 'all') {
+      const now = new Date();
+      let startDate;
+      if (timeRange === '7days') {
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (timeRange === 'month' || timeRange === '30days') {
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      } else if (timeRange === 'year') {
+        startDate = new Date(now.getFullYear(), 0, 1);
+      }
+      if (startDate) {
+        dateFilter = { createdAt: { $gte: startDate } };
+      }
+    }
+
     // 1. Total Clients: distinct registered users with role 'user' who have bookings/enquiries
     const clientsResult = await Booking.aggregate([
+      {
+        $match: dateFilter
+      },
       {
         $lookup: {
           from: 'users',
@@ -599,22 +620,25 @@ const getAdminOverview = async (req, res) => {
 
     // 2. Free Enquiries: total enquiry submissions (bookingType: 'Enquiry')
     const totalEnquiries = await Booking.countDocuments({
+      ...dateFilter,
       bookingType: { $regex: /^enquiry$/i }
     });
 
     // 3. Paid Demos: only those that are confirmed or completed
     const paidDemos = await Booking.countDocuments({
+      ...dateFilter,
       bookingType: { $regex: /^demo$/i },
       status: { $in: ['confirmed', 'completed'] }
     });
 
     // totalBookings represents the sum of all booking documents
-    const totalBookings = await Booking.countDocuments({});
+    const totalBookings = await Booking.countDocuments(dateFilter);
 
     // 4. Total Revenue: sum of price of all confirmed/completed demos (bookingType: 'Demo')
     const revenueResult = await Booking.aggregate([
       {
         $match: {
+          ...dateFilter,
           bookingType: { $regex: /^demo$/i },
           status: { $in: ['confirmed', 'completed'] }
         }
