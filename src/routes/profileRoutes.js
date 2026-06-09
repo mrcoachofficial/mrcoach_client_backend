@@ -10,7 +10,8 @@ const {
   removeProfileImage,
   updateLocation,
   getNotificationPreferences,
-  updateNotificationPreferences
+  updateNotificationPreferences,
+  deleteAccount
 } = require('../controllers/profileController');
 
 // Multer storage setup for profile images
@@ -52,5 +53,6 @@ router.post('/upload-image', upload.single('image'), uploadProfileImage);
 router.delete('/remove-image', removeProfileImage);
 router.get('/notification-preferences', getNotificationPreferences);
 router.put('/notification-preferences', updateNotificationPreferences);
+router.delete('/delete-account', deleteAccount);
 
 module.exports = router;

@@ -200,6 +200,23 @@ const updateNotificationPreferences = async (req, res) => {
   }
 };
 
+// @desc    Delete user account
+// @route   DELETE /api/profile/delete-account
+// @access  Private
+const deleteAccount = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    await User.deleteOne({ _id: user._id });
+    res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
@@ -207,5 +224,6 @@ module.exports = {
   removeProfileImage,
   updateLocation,
   getNotificationPreferences,
-  updateNotificationPreferences
+  updateNotificationPreferences,
+  deleteAccount
 };
