@@ -330,7 +330,7 @@ const changePassword = async (req, res) => {
 // @access  Public
 const sendOtp = async (req, res) => {
   try {
-    const { phoneNumber } = req.body;
+    const { phoneNumber, isLogin } = req.body;
     if (!phoneNumber) {
       return res.status(400).json({ message: 'Please provide a phone number' });
     }
@@ -340,6 +340,9 @@ const sendOtp = async (req, res) => {
     // Find or create user
     let user = await User.findOne({ phoneNumber: cleanPhone });
     if (!user) {
+      if (isLogin === true) {
+        return res.status(404).json({ message: 'This mobile number is not registered. Please sign up first!' });
+      }
       user = new User({
         phoneNumber: cleanPhone,
         authProvider: 'phone_otp',
