@@ -453,18 +453,27 @@ const verifyOtp = async (req, res) => {
 // @access  Public
 const googleLogin = async (req, res) => {
   try {
-    const { idToken } = req.body;
-    if (!idToken) {
-      return res.status(400).json({ message: 'Please provide Google ID Token' });
+    const { idToken, accessToken } = req.body;
+    if (!idToken && !accessToken) {
+      return res.status(400).json({ message: 'Please provide Google ID Token or Access Token' });
     }
 
-    // Verify token with Google's API
-    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
-    if (!response.ok) {
-      return res.status(400).json({ message: 'Invalid Google ID Token' });
+    let payload;
+    if (idToken) {
+      // Verify ID token with Google's API
+      const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+      if (!response.ok) {
+        return res.status(400).json({ message: 'Invalid Google ID Token' });
+      }
+      payload = await response.json();
+    } else {
+      // Verify Access token with Google's Userinfo API
+      const response = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`);
+      if (!response.ok) {
+        return res.status(400).json({ message: 'Invalid Google Access Token' });
+      }
+      payload = await response.json();
     }
-
-    const payload = await response.json();
     const { email, name, picture } = payload;
 
     if (!email) {
