@@ -18,6 +18,10 @@ const voucherSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  isPercentage: {
+    type: Boolean,
+    default: false
+  },
   expiryDate: {
     type: Date,
     required: true

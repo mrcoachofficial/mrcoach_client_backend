@@ -509,10 +509,10 @@ exports.redeemCoinsForVoucher = async (req, res) => {
   try {
     const { coins } = req.body;
     const coinOptions = {
-      500: 50,
-      1000: 100,
-      2000: 250,
-      5000: 750
+      500: 5,
+      1000: 10,
+      2000: 15,
+      5000: 25
     };
     
     if (!coinOptions[coins]) {
@@ -534,7 +534,7 @@ exports.redeemCoinsForVoucher = async (req, res) => {
       userId: req.user._id,
       type: 'redeem',
       coins: coins,
-      description: `Redeemed for ₹${amount} Voucher`
+      description: `Redeemed for ${amount}% Discount Voucher`
     });
     
     const voucherCode = `MRC${amount}`;
@@ -547,6 +547,7 @@ exports.redeemCoinsForVoucher = async (req, res) => {
       voucherCode,
       amount,
       coinsUsed: coins,
+      isPercentage: true,
       expiryDate,
       status: 'active'
     });
