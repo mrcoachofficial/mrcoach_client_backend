@@ -537,7 +537,13 @@ exports.redeemCoinsForVoucher = async (req, res) => {
       description: `Redeemed for ${amount}% Discount Voucher`
     });
     
-    const voucherCode = `MRC${amount}`;
+    const codeMap = {
+      5: 'DRUX5',
+      10: 'DRUX10',
+      15: 'DRUX15',
+      25: 'DRUXMAX25'
+    };
+    const voucherCode = codeMap[amount] || `DRUX${amount}`;
     
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 30);
