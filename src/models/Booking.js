@@ -99,8 +99,55 @@ const bookingSchema = new mongoose.Schema({
     default: []
   }
 }, {
-  timestamps: true // Automatically creates 'createdAt' and 'updatedAt' fields
+  timestamps: true
+});
+
+bookingSchema.post('save', async function(doc) {
+  if (doc.status === 'completed') {
+    try {
+      const UserWallet = mongoose.model('UserWallet');
+      const CoinTransaction = mongoose.model('CoinTransaction');
+      
+      let wallet = await UserWallet.findOne({ userId: doc.user });
+      if (!wallet) {
+        wallet = await UserWallet.create({ userId: doc.user });
+      }
+
+      if (doc.bookingType === 'Demo') {
+        const desc = `Completed demo booking (ID: ${doc._id})`;
+        const exists = await CoinTransaction.findOne({ userId: doc.user, description: desc });
+        if (!exists) {
+          wallet.currentCoins += 20;
+          wallet.lifetimeCoins += 20;
+          await wallet.save();
+          await CoinTransaction.create({
+            userId: doc.user,
+            type: 'earn',
+            coins: 20,
+            description: desc
+          });
+        }
+      } else if (doc.paymentStatus === 'paid') {
+        const desc = `Completed paid session (ID: ${doc._id})`;
+        const exists = await CoinTransaction.findOne({ userId: doc.user, description: desc });
+        if (!exists) {
+          wallet.currentCoins += 50;
+          wallet.lifetimeCoins += 50;
+          await wallet.save();
+          await CoinTransaction.create({
+            userId: doc.user,
+            type: 'earn',
+            coins: 50,
+            description: desc
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error awarding booking completion coins:', err);
+    }
+  }
 });
 
 const Booking = mongoose.model('Booking', bookingSchema);
 module.exports = Booking;
+

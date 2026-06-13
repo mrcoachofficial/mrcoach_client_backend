@@ -346,6 +346,18 @@ const getAdminConfigs = async (req, res) => {
       servicesHero = await Config.create({ key: 'servicesHeroImage', value: '' });
     }
 
+    const Challenge = require('../models/Challenge');
+    const challengeCount = await Challenge.countDocuments();
+    if (challengeCount === 0) {
+      await Challenge.create([
+        { title: 'Weekly Walking Challenge', type: 'Weekly', activityType: 'Walking', target: 15, rewardCoins: 100, isActive: true },
+        { title: 'Monthly Walking Challenge', type: 'Monthly', activityType: 'Walking', target: 60, rewardCoins: 500, isActive: true },
+        { title: 'Monthly Power Run Challenge', type: 'Monthly', activityType: 'Running', target: 40, rewardCoins: 800, isActive: true },
+        { title: 'Monthly Cycling Challenge', type: 'Monthly', activityType: 'Cycling', target: 100, rewardCoins: 1000, isActive: true }
+      ]);
+      console.log('Default Challenges seeded successfully.');
+    }
+
     res.json({
       maintenanceMode: maintenance.value,
       sendNotifications: notifications.value,
