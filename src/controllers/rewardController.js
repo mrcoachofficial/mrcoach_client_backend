@@ -537,12 +537,7 @@ exports.redeemCoinsForVoucher = async (req, res) => {
       description: `Redeemed for ₹${amount} Voucher`
     });
     
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let randCode = '';
-    for (let i = 0; i < 6; i++) {
-      randCode += chars.charAt(mathRandomInt(0, chars.length - 1));
-    }
-    const voucherCode = `MRC${amount}-${randCode}`;
+    const voucherCode = `MRC${amount}`;
     
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 30);
