@@ -423,6 +423,39 @@ const verifyOtp = async (req, res) => {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
+    // Check if user is signing up for the first time
+    const isNewRegistration = !user.lastLoginAt;
+
+    if (isNewRegistration && req.body.referralCode) {
+      const referralCode = req.body.referralCode.trim();
+      const referrer = await User.findOne({ referralCode });
+      if (!referrer) {
+        return res.status(400).json({ message: 'Invalid referral code' });
+      }
+
+      if (referrer.phoneNumber === cleanPhone || referrer._id.toString() === user._id.toString()) {
+        return res.status(400).json({ message: 'Self-referral is not allowed' });
+      }
+
+      // Check if already referred to avoid duplicate records
+      const existingReferral = await Referral.findOne({ referredUser: user._id });
+      if (!existingReferral) {
+        user.referredBy = referrer._id;
+
+        // Create the Referral record
+        await Referral.create({
+          referrer: referrer._id,
+          referredUser: user._id,
+          referralCode,
+          status: 'SIGNED_UP'
+        });
+
+        referrer.referralStats.totalInvites += 1;
+        referrer.referralStats.totalJoined += 1;
+        await referrer.save();
+      }
+    }
+
     // Success
     user.phoneVerified = true;
     user.phoneOtp = undefined;

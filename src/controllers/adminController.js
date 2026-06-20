@@ -664,12 +664,69 @@ const getAdminOverview = async (req, res) => {
     ]);
     const totalRevenue = revenueResult[0]?.totalRevenue || 0;
 
+    // 5. Top-Performing Services
+    const topServices = await Booking.aggregate([
+      { $match: dateFilter },
+      {
+        $group: {
+          _id: '$serviceName',
+          bookingCount: { $sum: 1 },
+          totalRevenue: { $sum: { $ifNull: ['$price', 99] } }
+        }
+      },
+      { $sort: { bookingCount: -1 } }
+    ]);
+
+    // 6. City & Area Booking Density
+    const cityDensity = await Booking.aggregate([
+      { $match: dateFilter },
+      {
+        $group: {
+          _id: {
+            district: { $ifNull: ['$district', 'Unknown'] },
+            area: { $ifNull: ['$area', 'Unknown'] }
+          },
+          bookingCount: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          district: '$_id.district',
+          area: '$_id.area',
+          bookingCount: 1
+        }
+      },
+      { $sort: { bookingCount: -1 } }
+    ]);
+
+    // 7. Booking Mode Distribution
+    const modeDistribution = await Booking.aggregate([
+      { $match: dateFilter },
+      {
+        $group: {
+          _id: { $ifNull: ['$mode', 'Unknown'] },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          mode: '$_id',
+          count: 1
+        }
+      }
+    ]);
+
     res.json({
       totalClients,
       totalBookings,
       totalEnquiries,
       paidDemos,
-      totalRevenue
+      totalRevenue,
+      topServices,
+      cityDensity,
+      modeDistribution
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
