@@ -543,6 +543,84 @@ const googleLogin = async (req, res) => {
   }
 };
 
+// @desc    Login/Register with Apple ID Token
+// @route   POST /api/auth/apple
+// @access  Public
+const appleLogin = async (req, res) => {
+  try {
+    const { identityToken, email: providedEmail, name: providedName } = req.body;
+    if (!identityToken) {
+      return res.status(400).json({ message: 'Please provide Apple Identity Token' });
+    }
+
+    // Decode the token (claims/payload)
+    const decoded = jwt.decode(identityToken);
+    if (!decoded) {
+      return res.status(400).json({ message: 'Invalid Apple Identity Token' });
+    }
+
+    // Verify token expiration
+    if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {
+      return res.status(400).json({ message: 'Apple Identity Token has expired' });
+    }
+
+    // Verify issuer is Apple
+    if (decoded.iss !== 'https://appleid.apple.com') {
+      return res.status(400).json({ message: 'Invalid token issuer' });
+    }
+
+    // Extract user details
+    // Apple only sends the email/name on the first login request. 
+    // Subsequent requests won't contain them, so we must fall back to the decoded email.
+    const appleUserId = decoded.sub;
+    const email = decoded.email || providedEmail;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email address is required for Apple Sign-in' });
+    }
+
+    // Find or create user
+    let user = await User.findOne({ 
+      $or: [
+        { appleUserId },
+        { email: email.toLowerCase() }
+      ]
+    });
+
+    if (!user) {
+      user = new User({
+        name: providedName || (decoded.email ? decoded.email.split('@')[0] : 'Apple User'),
+        email: email.toLowerCase(),
+        appleUserId,
+        authProvider: 'apple',
+        phoneVerified: false
+      });
+      await user.save();
+    } else {
+      // If user existed via email/phone but hadn't linked Apple yet
+      if (!user.appleUserId) {
+        user.appleUserId = appleUserId;
+        await user.save();
+      }
+    }
+
+    // Update last login
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
+      token: generateToken(user._id)
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -552,5 +630,6 @@ module.exports = {
   changePassword,
   sendOtp,
   verifyOtp,
-  googleLogin
+  googleLogin,
+  appleLogin
 };
