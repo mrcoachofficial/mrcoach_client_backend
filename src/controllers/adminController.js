@@ -331,6 +331,7 @@ const getAdminConfigs = async (req, res) => {
     let notifications = await Config.findOne({ key: 'sendNotifications' });
     let rewards = await Config.findOne({ key: 'rewardsEnabled' });
     let servicesHero = await Config.findOne({ key: 'servicesHeroImage' });
+    let coachPriceTiers = await Config.findOne({ key: 'coachPriceTiers' });
 
     // Seed defaults if not found
     if (!maintenance) {
@@ -344,6 +345,17 @@ const getAdminConfigs = async (req, res) => {
     }
     if (!servicesHero) {
       servicesHero = await Config.create({ key: 'servicesHeroImage', value: '' });
+    }
+    if (!coachPriceTiers) {
+      coachPriceTiers = await Config.create({
+        key: 'coachPriceTiers',
+        value: [
+          { min: 0, max: 700, label: 'Entry Level Coaches', icon: 'person', color: '#2196F3' },
+          { min: 700, max: 1000, label: 'Entry to Mid Level', icon: 'person', color: '#FFFF9800' },
+          { min: 1000, max: 1200, label: 'Medium Level Coaches', icon: 'headset_mic', color: '#E91E63' },
+          { min: 1200, max: 3000, label: 'Premium Level Coaches', icon: 'workspace_premium', color: '#FBC02D', isPlus: true }
+        ]
+      });
     }
 
     const Challenge = require('../models/Challenge');
@@ -362,7 +374,8 @@ const getAdminConfigs = async (req, res) => {
       maintenanceMode: maintenance.value,
       sendNotifications: notifications.value,
       rewardsEnabled: rewards.value,
-      servicesHeroImage: servicesHero.value
+      servicesHeroImage: servicesHero.value,
+      coachPriceTiers: coachPriceTiers.value
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

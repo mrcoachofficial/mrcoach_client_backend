@@ -97,6 +97,9 @@ const bookingSchema = new mongoose.Schema({
   subcategories: {
     type: [String],
     default: []
+  },
+  priceRange: {
+    type: String
   }
 }, {
   timestamps: true

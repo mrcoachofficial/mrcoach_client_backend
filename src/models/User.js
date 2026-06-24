@@ -25,13 +25,8 @@ const userSchema = new mongoose.Schema({
   },
   authProvider: {
     type: String,
-    enum: ['phone_otp', 'google', 'email', 'apple'],
+    enum: ['phone_otp', 'google', 'email'],
     default: 'email'
-  },
-  appleUserId: {
-    type: String,
-    unique: true,
-    sparse: true
   },
   lastLoginAt: {
     type: Date

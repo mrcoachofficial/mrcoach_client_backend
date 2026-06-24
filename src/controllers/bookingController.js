@@ -41,7 +41,8 @@ const createBooking = async (req, res) => {
       availableDays,
       sourceWebsite,
       category,
-      subcategories
+      subcategories,
+      priceRange
     } = req.body;
 
     // Update slot capacity if booking is a demo session
@@ -89,7 +90,8 @@ const createBooking = async (req, res) => {
       availableDays,
       sourceWebsite,
       category,
-      subcategories
+      subcategories,
+      priceRange
     });
 
     const createdBooking = await booking.save();
@@ -188,9 +190,34 @@ const updateBookingStatus = async (req, res) => {
   }
 };
 
+// @desc    Get configured coach price tiers
+// @route   GET /api/bookings/price-tiers
+// @access  Public
+const getCoachPriceTiers = async (req, res) => {
+  try {
+    const Config = require('../models/Config');
+    let coachPriceTiers = await Config.findOne({ key: 'coachPriceTiers' });
+    if (!coachPriceTiers) {
+      coachPriceTiers = await Config.create({
+        key: 'coachPriceTiers',
+        value: [
+          { min: 0, max: 700, label: 'Entry Level Coaches', icon: 'person', color: '#2196F3' },
+          { min: 700, max: 1000, label: 'Entry to Mid Level', icon: 'person', color: '#FFFF9800' },
+          { min: 1000, max: 1200, label: 'Medium Level Coaches', icon: 'headset_mic', color: '#E91E63' },
+          { min: 1200, max: 3000, label: 'Premium Level Coaches', icon: 'workspace_premium', color: '#FBC02D', isPlus: true }
+        ]
+      });
+    }
+    res.json(coachPriceTiers.value);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createBooking,
   getMyBookings,
   getBookings,
-  updateBookingStatus
+  updateBookingStatus,
+  getCoachPriceTiers
 };
