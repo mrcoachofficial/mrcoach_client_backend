@@ -32,6 +32,7 @@ app.use('/api/notifications', require('./src/routes/notificationRoutes'));
 app.use('/api/events', require('./src/routes/eventRoutes'));
 app.use('/api/home-banners', require('./src/routes/homeBannerRoutes'));
 app.use('/api/service-media', require('./src/routes/serviceMediaRoutes'));
+app.use('/api/products', require('./src/routes/productRoutes'));
 
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, '/uploads')));

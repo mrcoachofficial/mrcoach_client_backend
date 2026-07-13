@@ -182,7 +182,8 @@ const getAdminSlots = async (req, res) => {
           mobileNumber: b.mobileNumber || 'N/A',
           serviceName: b.serviceName,
           status: b.status,
-          bookingType: b.bookingType
+          bookingType: b.bookingType,
+          priceRange: b.priceRange
         }))
       };
     });
@@ -596,12 +597,40 @@ const getAdminOverview = async (req, res) => {
     const timeRange = req.query.range || req.query.timeRange || 'all';
     let dateFilter = {};
 
-    if (timeRange !== 'all') {
+    if (timeRange === 'custom') {
+      const { startDate, endDate } = req.query;
+      if (startDate || endDate) {
+        dateFilter.createdAt = {};
+        if (startDate) {
+          dateFilter.createdAt.$gte = new Date(startDate);
+        }
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          dateFilter.createdAt.$lte = end;
+        }
+      }
+    } else if (timeRange === 'monthRange') {
+      const { startMonth, endMonth } = req.query;
+      if (startMonth || endMonth) {
+        dateFilter.createdAt = {};
+        if (startMonth) {
+          dateFilter.createdAt.$gte = new Date(`${startMonth}-01T00:00:00`);
+        }
+        if (endMonth) {
+          const [year, month] = endMonth.split('-').map(Number);
+          const lastDay = new Date(year, month, 0, 23, 59, 59, 999);
+          dateFilter.createdAt.$lte = lastDay;
+        }
+      }
+    } else if (timeRange !== 'all') {
       const now = new Date();
       let startDate;
-      if (timeRange === '7days') {
+      if (timeRange === 'today' || timeRange === '1day') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (timeRange === '7days' || timeRange === '1week') {
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      } else if (timeRange === 'month' || timeRange === '30days') {
+      } else if (timeRange === 'month' || timeRange === '30days' || timeRange === '1month') {
         startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       } else if (timeRange === 'year') {
         startDate = new Date(now.getFullYear(), 0, 1);
@@ -731,6 +760,37 @@ const getAdminOverview = async (req, res) => {
       }
     ]);
 
+    // 8. Trend data (Grouped by date)
+    const trendResult = await Booking.aggregate([
+      { $match: dateFilter },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          bookings: { $sum: 1 },
+          revenue: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: [{ $toLower: "$bookingType" }, "demo"] },
+                    { $in: ["$status", ["confirmed", "completed"]] }
+                  ]
+                },
+                { $ifNull: ["$price", 99] },
+                0
+              ]
+            }
+          }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+    const trendData = trendResult.map(t => ({
+      name: t._id,
+      bookings: t.bookings,
+      revenue: t.revenue
+    }));
+
     res.json({
       totalClients,
       totalBookings,
@@ -739,7 +799,8 @@ const getAdminOverview = async (req, res) => {
       totalRevenue,
       topServices,
       cityDensity,
-      modeDistribution
+      modeDistribution,
+      trendData
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
