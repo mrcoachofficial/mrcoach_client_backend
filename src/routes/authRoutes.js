@@ -9,7 +9,8 @@ const {
   changePassword,
   sendOtp,
   verifyOtp,
-  googleLogin
+  googleLogin,
+  appleLogin
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -18,6 +19,7 @@ router.post('/login', loginUser);
 router.post('/send-otp', sendOtp);
 router.post('/verify-otp', verifyOtp);
 router.post('/google', googleLogin);
+router.post('/apple', appleLogin);
 router.get('/profile', protect, getUserProfile);
 
 router.post('/send-password-otp', protect, sendPasswordOtp);

@@ -543,6 +543,70 @@ const googleLogin = async (req, res) => {
   }
 };
 
+// @desc    Login/Register with Apple Credentials
+// @route   POST /api/auth/apple
+// @access  Public
+const appleLogin = async (req, res) => {
+  try {
+    const { identityToken, userIdentifier, email, name } = req.body;
+    if (!identityToken || !userIdentifier) {
+      return res.status(400).json({ message: 'Please provide Apple Identity Token and User Identifier' });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.decode(identityToken);
+    } catch (e) {
+      return res.status(400).json({ message: 'Failed to decode Apple Identity Token' });
+    }
+
+    if (!decoded || decoded.sub !== userIdentifier) {
+      return res.status(400).json({ message: 'Apple Identity Token verification failed: User identifier mismatch' });
+    }
+
+    const finalEmail = decoded.email || email;
+
+    // Find user by appleId or email
+    let user = await User.findOne({
+      $or: [
+        { appleId: userIdentifier },
+        ...(finalEmail ? [{ email: finalEmail.toLowerCase() }] : [])
+      ]
+    });
+
+    if (!user) {
+      user = new User({
+        name: name || 'Apple User',
+        email: finalEmail ? finalEmail.toLowerCase() : undefined,
+        authProvider: 'apple',
+        appleId: userIdentifier,
+        phoneVerified: false
+      });
+      await user.save();
+    } else if (!user.appleId) {
+      user.appleId = userIdentifier;
+      if (!user.authProvider || user.authProvider === 'email') {
+        user.authProvider = 'apple';
+      }
+      await user.save();
+    }
+
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
+      token: generateToken(user._id)
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -552,5 +616,6 @@ module.exports = {
   changePassword,
   sendOtp,
   verifyOtp,
-  googleLogin
+  googleLogin,
+  appleLogin
 };
