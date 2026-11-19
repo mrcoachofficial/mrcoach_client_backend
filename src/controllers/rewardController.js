@@ -454,6 +454,44 @@ exports.updateChallengeProgress = async (req, res) => {
   }
 };
 
+// @desc    Cancel and reset an active challenge
+// @route   POST /api/rewards/challenges/:id/cancel
+// @access  Private
+exports.cancelChallenge = async (req, res) => {
+  try {
+    const challenge = await Challenge.findById(req.params.id);
+    if (!challenge) {
+      return res.status(404).json({ message: 'Challenge not found' });
+    }
+
+    const userProgress = await UserChallengeProgress.findOne({
+      userId: req.user._id,
+      challengeId: challenge._id
+    });
+
+    if (!userProgress) {
+      return res.json({ success: true, userProgress: 0, userStatus: 'active' });
+    }
+
+    if (userProgress.status === 'claimed') {
+      return res.status(400).json({ message: 'Challenge reward already claimed' });
+    }
+
+    userProgress.progress = 0;
+    userProgress.status = 'active';
+    userProgress.completedAt = undefined;
+    await userProgress.save();
+
+    return res.json({
+      success: true,
+      userProgress: userProgress.progress,
+      userStatus: userProgress.status
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Claim challenge reward coins
 // @route   POST /api/rewards/challenges/:id/claim
 // @access  Private
