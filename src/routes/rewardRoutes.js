@@ -12,6 +12,7 @@ const {
   getCoinTransactions,
   getChallenges,
   updateChallengeProgress,
+  cancelChallenge,
   claimChallengeReward,
   redeemCoinsForVoucher,
   getUserVouchers,
@@ -42,6 +43,9 @@ router.route('/challenges')
 
 router.route('/challenges/:id/progress')
   .post(protect, updateChallengeProgress);
+
+router.route('/challenges/:id/cancel')
+  .post(protect, cancelChallenge);
 
 router.route('/challenges/:id/claim')
   .post(protect, claimChallengeReward);
