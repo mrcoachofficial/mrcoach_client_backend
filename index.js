@@ -5,12 +5,13 @@ const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./src/config/db');
+const { startVirtualRunSettlementWorker } = require('./src/services/virtualRunSettlement');
 
 // Load environment variables
 dotenv.config();
 
 // Connect to database
-connectDB();
+connectDB().then(() => startVirtualRunSettlementWorker());
 
 const app = express();
 
@@ -27,15 +28,17 @@ app.use('/api/payment', require('./src/routes/paymentRoutes'));
 app.use('/api/admin', require('./src/routes/adminRoutes'));
 app.use('/api/upload', require('./src/routes/uploadRoutes'));
 app.use('/api/rewards', require('./src/routes/rewardRoutes'));
+app.use('/api/wallet', require('./src/routes/walletRoutes'));
 app.use('/api/referrals', require('./src/routes/referralRoutes'));
 app.use('/api/notifications', require('./src/routes/notificationRoutes'));
 app.use('/api/events', require('./src/routes/eventRoutes'));
 app.use('/api/home-banners', require('./src/routes/homeBannerRoutes'));
 app.use('/api/service-media', require('./src/routes/serviceMediaRoutes'));
 app.use('/api/products', require('./src/routes/productRoutes'));
+app.use('/api/coaches', require('./src/routes/coachRoutes'));
 
 const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, '/uploads')));
+app.use('/uploads', express.static('uploads'));
 
 // Basic route
 app.get('/', (req, res) => {

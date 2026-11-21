@@ -6,6 +6,10 @@ const voucherSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  sourceEventId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Event'
+  },
   voucherCode: {
     type: String,
     required: true
@@ -34,6 +38,11 @@ const voucherSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+voucherSchema.index(
+  { sourceEventId: 1 },
+  { unique: true, partialFilterExpression: { sourceEventId: { $type: 'objectId' } } }
+);
 
 const Voucher = mongoose.model('Voucher', voucherSchema);
 module.exports = Voucher;

@@ -12,8 +12,9 @@ const sendSms = async (phoneNumber, otp) => {
   if (!authKey || !templateId || authKey.includes('your_msg91') || templateId.includes('your_msg91')) {
     console.log(`\n====================================`);
     console.log(`[SMS MSG91 Fallback] OTP for ${phoneNumber}: ${otp}`);
-    console.log(`====================================\n`);
-    return true;
+        console.log(`====================================\n`);
+    return process.env.NODE_ENV !== 'production';
+  
   }
 
   try {

@@ -7,7 +7,8 @@ const {
   changeAdminPassword, getAdminConfigs, updateAdminConfig, getAdminUsers,
   importAdminUsers, getAdminOverview, updateAdminUser,
   deleteAdminUser, getAdminUserDetail, getAdminEventBookings,
-  getAdminEventOverview, exportVerifiedPhoneNumbers, deleteAdminBooking
+  getAdminEventOverview, exportVerifiedPhoneNumbers, deleteAdminBooking,
+  getAdminCoaches, createAdminCoach, updateAdminCoach, deleteAdminCoach
 } = require('../controllers/adminController');
 
 router.post('/login', adminLogin);
@@ -26,6 +27,8 @@ router.route('/slots').get(getAdminSlots).post(createAdminSlot);
 router.route('/slots/:id').delete(deleteAdminSlot);
 router.route('/products').get(getAdminProducts).post(createAdminProduct);
 router.route('/products/:id').put(updateAdminProduct).delete(deleteAdminProduct);
+router.route('/coaches').get(getAdminCoaches).post(createAdminCoach);
+router.route('/coaches/:id').put(updateAdminCoach).delete(deleteAdminCoach);
 router.put('/change-password', changeAdminPassword);
 router.route('/config').get(getAdminConfigs).put(updateAdminConfig);
 

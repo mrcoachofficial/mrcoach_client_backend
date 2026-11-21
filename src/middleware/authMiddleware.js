@@ -11,27 +11,34 @@ const protect = async (req, res, next) => {
 
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.auth = decoded;
 
       // Get user from the token
       req.user = await User.findById(decoded.id).select('-password');
+      if (!req.user) {
+        return res.status(401).json({ message: 'Not authorized, user not found' });
+      }
 
       next();
     } catch (error) {
-      res.status(401).json({ message: 'Not authorized, token failed' });
+      return res.status(401).json({ message: 'Not authorized, token failed' });
     }
+    return;
   }
 
-  if (!token) {
-    res.status(401).json({ message: 'Not authorized, no token' });
-  }
+  return res.status(401).json({ message: 'Not authorized, no token' });
 };
 
 // Admin middleware to restrict access to admin users only
 const admin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+  if (
+    req.auth?.role === 'admin' &&
+    req.user &&
+    req.user.role === 'admin'
+  ) {
     next();
   } else {
-    res.status(401).json({ message: 'Not authorized as an admin' });
+    res.status(403).json({ message: 'Not authorized as an admin' });
   }
 };
 

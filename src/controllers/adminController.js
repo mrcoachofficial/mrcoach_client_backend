@@ -5,11 +5,12 @@ const Slot = require('../models/Slot');
 const Product = require('../models/Product');
 const Config = require('../models/Config');
 const EventBooking = require('../models/EventBooking');
+const Coach = require('../models/Coach');
 const jwt = require('jsonwebtoken');
 
 // Generate JWT token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'fallback_secret', {
+const generateToken = (id, role) => {
+  return jwt.sign({ id, role }, process.env.JWT_SECRET || 'fallback_secret', {
     expiresIn: '30d',
   });
 };
@@ -54,7 +55,7 @@ const adminLogin = async (req, res) => {
           name: user.name,
           email: user.email,
           role: user.role,
-          token: generateToken(user._id)
+          token: generateToken(user._id, user.role)
         });
       } else {
         console.log('Password does not match.');
@@ -1033,6 +1034,72 @@ const deleteAdminBooking = async (req, res) => {
   }
 };
 
+// @desc    Get all coaches for admin
+// @route   GET /api/admin/coaches
+// @access  Public (Temporary for dev)
+const getAdminCoaches = async (req, res) => {
+  try {
+    let coaches = await Coach.find({});
+    // Seed default coaches if database is empty
+    if (coaches.length === 0) {
+      const defaults = [
+        { name: 'Arun Kumar', category: 'Strength Coach', sessionsCompleted: '250+ Sessions', rating: 4.9, imageUrl: '' },
+        { name: 'Divya R.', category: 'Yoga Expert', sessionsCompleted: '180+ Sessions', rating: 4.9, imageUrl: '' },
+        { name: 'Vikram S.', category: 'Physiotherapist', sessionsCompleted: '300+ Sessions', rating: 4.8, imageUrl: '' },
+        { name: 'Megha S.', category: 'Nutritionist', sessionsCompleted: '220+ Sessions', rating: 4.8, imageUrl: '' }
+      ];
+      coaches = await Coach.create(defaults);
+    }
+    res.json(coaches);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Create a coach
+// @route   POST /api/admin/coaches
+// @access  Public (Temporary for dev)
+const createAdminCoach = async (req, res) => {
+  try {
+    const coach = await Coach.create(req.body);
+    res.status(201).json(coach);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update a coach
+// @route   PUT /api/admin/coaches/:id
+// @access  Public (Temporary for dev)
+const updateAdminCoach = async (req, res) => {
+  try {
+    const coach = await Coach.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (coach) {
+      res.json(coach);
+    } else {
+      res.status(404).json({ message: 'Coach not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Delete a coach
+// @route   DELETE /api/admin/coaches/:id
+// @access  Public (Temporary for dev)
+const deleteAdminCoach = async (req, res) => {
+  try {
+    const coach = await Coach.findByIdAndDelete(req.params.id);
+    if (coach) {
+      res.json({ message: 'Coach removed' });
+    } else {
+      res.status(404).json({ message: 'Coach not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getAdminBookings,
   updateAdminService,
@@ -1057,5 +1124,9 @@ module.exports = {
   getAdminEventBookings,
   getAdminEventOverview,
   exportVerifiedPhoneNumbers,
-  deleteAdminBooking
+  deleteAdminBooking,
+  getAdminCoaches,
+  createAdminCoach,
+  updateAdminCoach,
+  deleteAdminCoach
 };

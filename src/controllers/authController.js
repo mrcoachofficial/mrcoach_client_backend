@@ -8,8 +8,8 @@ const sendEmail = require('../utils/sendEmail');
 const sendSms = require('../utils/sendSms');
 
 // Generate JWT token
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+const generateToken = (id, role) => {
+  return jwt.sign({ id, role }, process.env.JWT_SECRET, {
     expiresIn: '30d',
   });
 };
@@ -19,7 +19,7 @@ const generateToken = (id) => {
 // @access  Public
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role, referralCode, deviceId, signupMetadata } = req.body;
+    const { name, email, password, referralCode, deviceId, signupMetadata } = req.body;
     const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
 
     // Check if user exists
@@ -70,7 +70,7 @@ const registerUser = async (req, res) => {
       name,
       email,
       password,
-      role: role || 'user',
+      role: 'user',
       referredBy,
       deviceId,
       signupIp: ipAddress,
@@ -100,7 +100,7 @@ const registerUser = async (req, res) => {
         email: user.email,
         role: user.role,
         referralCode: user.referralCode,
-        token: generateToken(user._id)
+        token: generateToken(user._id, user.role)
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
@@ -139,7 +139,7 @@ const loginUser = async (req, res) => {
         email: user.email,
         phoneNumber: user.phoneNumber,
         role: user.role,
-        token: generateToken(user._id)
+        token: generateToken(user._id, user.role)
       });
     } else {
       res.status(401).json({ message: 'Invalid credentials. Please check your inputs.' });
@@ -325,7 +325,7 @@ const changePassword = async (req, res) => {
   }
 };
 
-// @desc    Send OTP to user's phone number
+// @desc    Send OTP to user's phone number  
 // @route   POST /api/auth/send-otp
 // @access  Public
 const sendOtp = async (req, res) => {
@@ -360,7 +360,10 @@ const sendOtp = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
     // Call SMS utility (sends via MSG91 if configured, else prints to console)
-    await sendSms(cleanPhone, otp);
+    const sent = await sendSms(cleanPhone, otp);
+if (!sent) {
+  return res.status(500).json({ message: 'Could not send OTP. Please try again.' });
+}
 
     user.phoneOtp = otp;
     user.phoneOtpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins expiration
@@ -369,11 +372,8 @@ const sendOtp = async (req, res) => {
 
     await user.save();
 
-    const responsePayload = { message: 'OTP sent successfully' };
-    if (process.env.NODE_ENV !== 'production') {
-      responsePayload.dummyOtp = otp;
-    }
-    res.json(responsePayload);
+    res.json({ message: 'OTP sent successfully' });
+    
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -381,7 +381,7 @@ const sendOtp = async (req, res) => {
 
 // @desc    Verify OTP and log in / register
 // @route   POST /api/auth/verify-otp
-// @access  Public
+// @access  Public 
 const verifyOtp = async (req, res) => {
   try {
     const { phoneNumber, otp, whatsappUpdates } = req.body;
@@ -396,7 +396,7 @@ const verifyOtp = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check expiration
+    // Check expiration 
     if (!user.phoneOtp || !user.phoneOtpExpires) {
       return res.status(400).json({ message: 'No OTP requested' });
     }
@@ -474,7 +474,7 @@ const verifyOtp = async (req, res) => {
       email: user.email,
       phoneNumber: user.phoneNumber,
       role: user.role,
-      token: generateToken(user._id)
+      token: generateToken(user._id, user.role)
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -497,7 +497,7 @@ const googleLogin = async (req, res) => {
       const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
       if (!response.ok) {
         return res.status(400).json({ message: 'Invalid Google ID Token' });
-      }
+      } 
       payload = await response.json();
     } else {
       // Verify Access token with Google's Userinfo API
@@ -536,7 +536,7 @@ const googleLogin = async (req, res) => {
       email: user.email,
       phoneNumber: user.phoneNumber,
       role: user.role,
-      token: generateToken(user._id)
+      token: generateToken(user._id, user.role)
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -600,7 +600,7 @@ const appleLogin = async (req, res) => {
       email: user.email,
       phoneNumber: user.phoneNumber,
       role: user.role,
-      token: generateToken(user._id)
+      token: generateToken(user._id, user.role)
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

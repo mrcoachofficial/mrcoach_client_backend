@@ -1,4 +1,5 @@
 const RewardCampaign = require('../models/RewardCampaign');
+const mongoose = require('mongoose');
 const UserReward = require('../models/UserReward');
 const User = require('../models/User');
 const Config = require('../models/Config');
@@ -7,6 +8,10 @@ const UserWallet = require('../models/UserWallet');
 const CoinTransaction = require('../models/CoinTransaction');
 const Challenge = require('../models/Challenge');
 const UserChallengeProgress = require('../models/UserChallengeProgress');
+const {
+  isValidCoordinate,
+  validateDestinationArrival
+} = require('../utils/challengeLocation');
 const Voucher = require('../models/Voucher');
 
 // Helper to auto-award reward on booking completion (creates a single campaign)
@@ -364,19 +369,11 @@ exports.getChallenges = async (req, res) => {
     const result = [];
     
     for (const challenge of challenges) {
-      let progress = await UserChallengeProgress.findOne({
-        userId: req.user._id,
-        challengeId: challenge._id
-      });
-      
-      if (!progress) {
-        progress = await UserChallengeProgress.create({
-          userId: req.user._id,
-          challengeId: challenge._id,
-          progress: 0,
-          status: 'active'
-        });
-      }
+      const progress = await UserChallengeProgress.findOneAndUpdate(
+        { userId: req.user._id, challengeId: challenge._id },
+        { $setOnInsert: { progress: 0, status: 'active' } },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
       
       result.push({
         _id: challenge._id,
@@ -388,7 +385,10 @@ exports.getChallenges = async (req, res) => {
         isActive: challenge.isActive,
         userProgress: progress.progress,
         userStatus: progress.status,
-        completedAt: progress.completedAt
+        completedAt: progress.completedAt,
+        source: progress.source,
+        destination: progress.destination,
+        startedAt: progress.startedAt
       });
     }
     
@@ -403,47 +403,67 @@ exports.getChallenges = async (req, res) => {
 // @access  Private
 exports.updateChallengeProgress = async (req, res) => {
   try {
-    const { progress } = req.body;
-    if (progress === undefined) {
-      return res.status(400).json({ message: 'Progress value is required' });
+    const { progress, source, destination } = req.body;
+    const submittedProgress = Number(progress);
+    if (progress === null || progress === undefined ||
+        !Number.isFinite(submittedProgress) || submittedProgress < 0) {
+      return res.status(400).json({ message: 'A non-negative progress value is required' });
     }
     
     const challenge = await Challenge.findById(req.params.id);
     if (!challenge) {
       return res.status(404).json({ message: 'Challenge not found' });
     }
+
+    const hasRoute = source !== undefined || destination !== undefined;
+    if (hasRoute && (!isValidCoordinate(source) || !isValidCoordinate(destination))) {
+      return res.status(400).json({ message: 'Valid source and destination coordinates are required' });
+    }
     
-    let userProgress = await UserChallengeProgress.findOne({
+    const existingProgress = await UserChallengeProgress.findOne({
       userId: req.user._id,
       challengeId: challenge._id
     });
-    
-    if (!userProgress) {
-      userProgress = new UserChallengeProgress({
-        userId: req.user._id,
-        challengeId: challenge._id,
-        progress: 0,
-        status: 'active'
-      });
-    }
-    
-    if (userProgress.status === 'claimed') {
+    if (existingProgress?.status === 'claimed') {
       return res.status(400).json({ message: 'Challenge reward already claimed' });
     }
-    
-    userProgress.progress = parseFloat(progress);
-    if (userProgress.progress >= challenge.target) {
-      userProgress.progress = challenge.target;
-      if (userProgress.status === 'active') {
-        userProgress.status = 'completed';
-        userProgress.completedAt = new Date();
+
+    const progressFilter = existingProgress
+      ? { _id: existingProgress._id, status: { $ne: 'claimed' } }
+      : { userId: req.user._id, challengeId: challenge._id };
+    const userProgress = await UserChallengeProgress.findOneAndUpdate(
+      progressFilter,
+      {
+        $max: { progress: Math.min(submittedProgress, challenge.target) },
+        $setOnInsert: { status: 'active' }
+      },
+      {
+        new: true,
+        upsert: !existingProgress,
+        setDefaultsOnInsert: true
       }
-    } else {
-      userProgress.status = 'active';
-      userProgress.completedAt = null;
+    );
+
+    if (!userProgress) {
+      return res.status(400).json({ message: 'Challenge reward already claimed' });
     }
-    
-    await userProgress.save();
+
+    if (hasRoute) {
+      if (userProgress.status !== 'active') {
+        return res.status(409).json({ message: 'Only an active challenge route can be changed' });
+      }
+      userProgress.source = {
+        latitude: Number(source.latitude),
+        longitude: Number(source.longitude)
+      };
+      userProgress.destination = {
+        latitude: Number(destination.latitude),
+        longitude: Number(destination.longitude)
+      };
+      userProgress.startedAt = userProgress.startedAt || new Date();
+      await userProgress.save();
+    }
+
     res.json({
       success: true,
       userProgress: userProgress.progress,
@@ -454,51 +474,165 @@ exports.updateChallengeProgress = async (req, res) => {
   }
 };
 
-// @desc    Claim challenge reward coins
-// @route   POST /api/rewards/challenges/:id/claim
+// @desc    Cancel and reset an active map challenge
+// @route   POST /api/rewards/challenges/:id/cancel
 // @access  Private
-exports.claimChallengeReward = async (req, res) => {
+exports.cancelChallenge = async (req, res) => {
   try {
     const challenge = await Challenge.findById(req.params.id);
     if (!challenge) {
       return res.status(404).json({ message: 'Challenge not found' });
     }
-    
-    const userProgress = await UserChallengeProgress.findOne({
-      userId: req.user._id,
-      challengeId: challenge._id
-    });
-    
-    if (!userProgress || userProgress.status !== 'completed') {
-      return res.status(400).json({ message: 'Challenge not completed or already claimed' });
+
+    const progress = await UserChallengeProgress.findOneAndUpdate(
+      {
+        userId: req.user._id,
+        challengeId: challenge._id,
+        status: 'active'
+      },
+      {
+        $set: { progress: 0 },
+        $unset: {
+          source: 1,
+          destination: 1,
+          startedAt: 1,
+          completedAt: 1
+        }
+      },
+      { new: true }
+    );
+    if (!progress) {
+      return res.status(409).json({ message: 'This challenge is no longer active and cannot be reset' });
     }
-    
-    userProgress.status = 'claimed';
-    await userProgress.save();
-    
-    let wallet = await UserWallet.findOne({ userId: req.user._id });
-    if (!wallet) {
-      wallet = await UserWallet.create({ userId: req.user._id });
-    }
-    
-    wallet.currentCoins += challenge.rewardCoins;
-    wallet.lifetimeCoins += challenge.rewardCoins;
-    await wallet.save();
-    
-    await CoinTransaction.create({
-      userId: req.user._id,
-      type: 'earn',
-      coins: challenge.rewardCoins,
-      description: `Completed challenge: ${challenge.title}`
+
+    return res.json({
+      success: true,
+      userProgress: progress.progress,
+      userStatus: progress.status
     });
-    
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Claim challenge reward coins
+// @route   POST /api/rewards/challenges/:id/claim
+// @access  Private
+exports.claimChallengeReward = async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    const { location } = req.body;
+    const challengeId = req.params.id || req.body.trip_id || req.body.tripId || req.body.challenge_id;
+    if (!mongoose.isValidObjectId(challengeId)) {
+      return res.status(400).json({ message: 'A valid challenge trip_id is required' });
+    }
+    const challenge = await Challenge.findById(challengeId);
+    if (!challenge) {
+      return res.status(404).json({ message: 'Challenge not found' });
+    }
+
+    let wallet;
+    await session.withTransaction(async () => {
+      const userProgress = await UserChallengeProgress.findOne({
+        userId: req.user._id,
+        challengeId: challenge._id
+      }).session(session);
+
+      if (!userProgress || !userProgress.startedAt ||
+          !isValidCoordinate(userProgress.source) ||
+          !isValidCoordinate(userProgress.destination)) {
+        const error = new Error('Challenge route has not been started');
+        error.statusCode = 400;
+        throw error;
+      }
+
+      if (userProgress.status === 'claimed') {
+        const error = new Error('Challenge reward already claimed');
+        error.statusCode = 409;
+        throw error;
+      }
+
+      if (userProgress.progress < challenge.target) {
+        const error = new Error('Challenge target distance has not been completed');
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const arrival = validateDestinationArrival(
+        userProgress.destination,
+        location
+      );
+      if (!arrival.valid) {
+        const error = new Error(arrival.reason);
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const claimedProgress = await UserChallengeProgress.findOneAndUpdate(
+        {
+          _id: userProgress._id,
+          status: { $in: ['active', 'completed'] }
+        },
+        { $set: { status: 'claimed', completedAt: new Date() } },
+        { new: true, session }
+      );
+
+      if (!claimedProgress) {
+        const error = new Error('Challenge reward already claimed');
+        error.statusCode = 409;
+        throw error;
+      }
+
+      wallet = await UserWallet.findOneAndUpdate(
+        { userId: req.user._id },
+        {
+          $inc: {
+            currentCoins: challenge.rewardCoins,
+            lifetimeCoins: challenge.rewardCoins
+          }
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true, session }
+      );
+
+      await CoinTransaction.create([{
+        userId: req.user._id,
+        type: 'earned',
+        coins: challenge.rewardCoins,
+        tripId: challenge._id,
+        description: `Completed challenge: ${challenge.title}`
+      }], { session });
+    });
+
     res.json({
       success: true,
+      coinsAwarded: challenge.rewardCoins,
+      tripId: challenge._id,
       currentCoins: wallet.currentCoins,
       lifetimeCoins: wallet.lifetimeCoins
     });
   } catch (error) {
+    if (error.statusCode) {
+      if (error.statusCode === 409) {
+        const progress = await UserChallengeProgress.findOne({
+          userId: req.user._id,
+          challengeId: req.params.id,
+          status: 'claimed'
+        });
+        if (progress) {
+          const existingWallet = await UserWallet.findOne({ userId: req.user._id });
+          return res.json({
+            success: true,
+            alreadyClaimed: true,
+            currentCoins: existingWallet?.currentCoins ?? 0,
+            lifetimeCoins: existingWallet?.lifetimeCoins ?? 0
+          });
+        }
+      }
+      return res.status(error.statusCode).json({ message: error.message });
+    }
     res.status(500).json({ message: error.message });
+  } finally {
+    await session.endSession();
   }
 };
 
@@ -506,8 +640,9 @@ exports.claimChallengeReward = async (req, res) => {
 // @route   POST /api/rewards/vouchers/redeem
 // @access  Private
 exports.redeemCoinsForVoucher = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
-    const { coins } = req.body;
+    const coins = Number(req.body.coins);
     const coinOptions = {
       500: 5,
       1000: 10,
@@ -515,28 +650,11 @@ exports.redeemCoinsForVoucher = async (req, res) => {
       5000: 25
     };
     
-    if (!coinOptions[coins]) {
+    if (!Number.isInteger(coins) || !coinOptions[coins]) {
       return res.status(400).json({ message: 'Invalid coins redemption option' });
     }
     
     const amount = coinOptions[coins];
-    
-    let wallet = await UserWallet.findOne({ userId: req.user._id });
-    if (!wallet || wallet.currentCoins < coins) {
-      return res.status(400).json({ message: 'Insufficient coins in wallet' });
-    }
-    
-    wallet.currentCoins -= coins;
-    wallet.redeemedCoins += coins;
-    await wallet.save();
-    
-    await CoinTransaction.create({
-      userId: req.user._id,
-      type: 'redeem',
-      coins: coins,
-      description: `Redeemed for ${amount}% Discount Voucher`
-    });
-    
     const codeMap = {
       5: 'DRUX5',
       10: 'DRUX10',
@@ -547,24 +665,55 @@ exports.redeemCoinsForVoucher = async (req, res) => {
     
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 30);
-    
-    const voucher = await Voucher.create({
-      userId: req.user._id,
-      voucherCode,
-      amount,
-      coinsUsed: coins,
-      isPercentage: true,
-      expiryDate,
-      status: 'active'
+
+    let wallet;
+    let voucher;
+    await session.withTransaction(async () => {
+      wallet = await UserWallet.findOneAndUpdate(
+        { userId: req.user._id, currentCoins: { $gte: coins } },
+        {
+          $inc: {
+            currentCoins: -coins,
+            redeemedCoins: coins
+          }
+        },
+        { new: true, session }
+      );
+      if (!wallet) {
+        const error = new Error('Insufficient coins in wallet');
+        error.statusCode = 400;
+        throw error;
+      }
+
+      await CoinTransaction.create([{
+        userId: req.user._id,
+        type: 'redeemed',
+        coins,
+        description: `Redeemed for ${amount}% Discount Voucher`
+      }], { session });
+
+      [voucher] = await Voucher.create([{
+        userId: req.user._id,
+        voucherCode,
+        amount,
+        coinsUsed: coins,
+        isPercentage: true,
+        expiryDate,
+        status: 'active'
+      }], { session });
     });
-    
+
     res.status(201).json({
       success: true,
       voucher,
-      currentCoins: wallet.currentCoins
+      currentCoins: wallet.currentCoins,
+      lifetimeCoins: wallet.lifetimeCoins,
+      redeemedCoins: wallet.redeemedCoins
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.message });
+  } finally {
+    await session.endSession();
   }
 };
 

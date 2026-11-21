@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test test/challengeLocation.test.js test/event.test.js test/eventAdmin.test.js test/virtualRunSettlement.test.js test/virtualRunTracking.test.js"
   },
   "keywords": [],
   "author": "",
